@@ -16,10 +16,12 @@ python3 train.py \
   --SequenceModeling BiLSTM \
   --Prediction Attn \
   --FT \
+  --valInterval 1000 \
   --data_filtering_off \
-  --character 0123456789abcdefghijklmnopqrstuvwxyz- \
   --saved_model pretrained_model/TPS-ResNet-BiLSTM-Attn_15000.pth
 
+# finetune img size issue
+# https://github.com/clovaai/deep-text-recognition-benchmark/issues/96
 
 # python3 create_lmdb_dataset.py \
 #   --inputPath=/home/vi/Datasets/UFPR-ALPR/training \

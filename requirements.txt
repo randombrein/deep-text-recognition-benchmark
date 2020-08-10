@@ -3,6 +3,6 @@ torch==1.3.1
 torchvision==0.4.1
 # torchvision==0.5.0
 lmdb
-pillow
+pillow==6.2.1
 nltk
 natsort
