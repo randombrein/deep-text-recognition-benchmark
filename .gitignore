@@ -5,7 +5,6 @@
 *.mdb
 *.pth
 *.tar
-*.sh
 *.txt
 *.ipynb
 *.zip
@@ -206,3 +205,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# user
+.idea/
