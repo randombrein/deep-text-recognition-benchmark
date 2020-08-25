@@ -7,8 +7,8 @@
 #python3 train.py --train_data train/MJ --valid_data validation --select_data / --batch_ratio 1 --Transformation TPS --FeatureExtraction ResNet --SequenceModeling BiLSTM --Prediction Attn --FT --saved_model pretrained/TPS-ResNet-BiLSTM-Attn_15000.pth
 
 python3 train.py \
-  --train_data /home/vi/Datasets/UFPR-ALPR-lmdb/training \
-  --valid_data /home/vi/Datasets/UFPR-ALPR-lmdb/validation \
+  --train_data /Users/evren/tmp/tars/train-lmdb/ \
+  --valid_data /Users/evren/tmp/tars/test-lmdb/ \
   --select_data / \
   --batch_ratio 1 \
   --Transformation TPS \
@@ -16,7 +16,7 @@ python3 train.py \
   --SequenceModeling BiLSTM \
   --Prediction Attn \
   --FT \
-  --valInterval 1000 \
+  --valInterval 2000 \
   --data_filtering_off \
   --saved_model pretrained_model/TPS-ResNet-BiLSTM-Attn_15000.pth
 

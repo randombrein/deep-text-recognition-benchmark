@@ -204,7 +204,7 @@ def train(opt):
                 print(predicted_result_log)
                 log.write(predicted_result_log + '\n')
 
-        if (iteration + 1) % 10 == 0:
+        if (iteration + 1) % 100 == 0:
             print(f'#iter-{iteration+1}')
 
         # save model

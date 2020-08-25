@@ -295,9 +295,6 @@ def createDatasetBbox(inputPath, outputPath, checkValid=True):
     precnt = 1
 
     for dirpath, dirnames, filenames in os.walk(inputPath):
-        if len(dirnames) == 0:
-            dirnames = [dirpath]  # only single dataset folder
-
         for dirname in dirnames:
             rootpath = os.path.join(dirpath, dirname)
             print(f"reading input path: {rootpath}")
@@ -358,3 +355,12 @@ def createDatasetBbox(inputPath, outputPath, checkValid=True):
 
 if __name__ == '__main__':
     fire.Fire(createDatasetBbox)
+
+# python3 create_lmdb_dataset --inputPath train-crop --outputPath train-lmdb
+# Created dataset with 3885 samples
+
+# python3 create_lmdb_dataset --inputPath validation-crop --outputPath validation-lmdb
+# Created dataset with 1332 samples
+
+# python3 create_lmdb_dataset --inputPath test-crop --outputPath test-lmdb
+# Created dataset with 667 samples
