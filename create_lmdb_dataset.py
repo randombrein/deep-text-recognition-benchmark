@@ -4,6 +4,7 @@ from pathlib import Path
 
 import fire
 import os
+import json
 import lmdb
 import cv2
 import numpy as np
@@ -87,6 +88,15 @@ def createDataset(inputPath, gtFile, outputPath, checkValid=True):
     env.close()
 
 
+class _LPMeta:
+    __slots__ = [
+        "label",  # LP label
+        "pos"  # [x0 y0 x1 y1]
+    ]
+    def is_valid(self):
+        return self.label is not None and self.pos is not None
+
+
 def createDatasetALPR(inputPath, outputPath, checkValid=True):
     """Create LMDB dataset of UFPR-ALPR for training and evaluation.
     UFPR-ALPR has following directory format;
@@ -130,14 +140,6 @@ def createDatasetALPR(inputPath, outputPath, checkValid=True):
         outputPath : LMDB output path
         checkValid : if true, check the validity of every image
     """
-    class _LPMeta:
-        __slots__ = [
-            "label",  # LP label
-            "pos"  # [x0 y0 x1 y1]
-        ]
-        def is_valid(self):
-            return self.label is not None and self.pos is not None
-
     def _parse_meta(metaPath):
         meta = _LPMeta()
         with open(metaPath, 'r') as fd:
@@ -171,26 +173,26 @@ def createDatasetALPR(inputPath, outputPath, checkValid=True):
 
             if not os.path.exists(imagePath):
                 print('%s does not exist' % imagePath)
-                return (None, None, self.image_path_list[index])
+                return (None, None, imagePath)
 
             # parse LP label from metafile
             try:
                 meta = _parse_meta(metaPath)
                 if not meta.is_valid:
                     print('invalid meta: %s' % metaPath)
-                    return (None, None, self.image_path_list[index])
+                    return (None, None, imagePath)
             except Exception as e:
                 print('error occured for meta', metaPath, str(e))
                 with open(outputPath + '/error_image_log.txt', 'a') as log:
                     log.write('label parsing error: %s\n' % metaPath)
-                return (None, None, self.image_path_list[index])
+                return (None, None, imagePath)
 
             # crop image
             try:
                 image = Image.open(imagePath)
             except IOError:
                 print('Corrupted image: %s' % imagePath)
-                return (None, None, self.image_path_list[index])
+                return (None, None, imagePath)
             x, y, w, h = meta.pos
             box = (x, y, x + w, y + h)
             cropped_image = image.crop(box)
@@ -198,7 +200,8 @@ def createDatasetALPR(inputPath, outputPath, checkValid=True):
 
             with open(cropPath, 'rb') as f:
                 img = f.read()
-            return (img, meta, self.image_path_list[index])
+            return (img, meta, imagePath)
+
 
     os.makedirs(outputPath, exist_ok=True)
     env = lmdb.open(outputPath, map_size=1099511627776)  # 1024GB
@@ -231,13 +234,112 @@ def createDatasetALPR(inputPath, outputPath, checkValid=True):
             print('Written %d / %d' % (cnt, nSamples))
         cnt += 1
     nSamples = cnt - 1
+
     cache['num-samples'.encode()] = str(nSamples).encode()
-    writeCache(env, cache)
+    writeCache(env, cache)  # flush cache
     print('Created dataset with %d samples' % nSamples)
     env.close()
 
 
-# def demo_crop():
+def createDatasetBbox(inputPath, outputPath, checkValid=True):
+    """
+    ├── train5000-5500-crop
+        ├── _lp.json
+        ├── 00000002-roi1--2018-01-25-08-23-59-b0.jpeg
+        ├── 00000002-roi1--2018-01-25-09-05-59-b0.jpeg
+        ├── ...
+    ├── train3462-3962-crop
+        ├── _lp.json
+        ├── ...
+    ...
+    """
+    class _Dataset:
+        def __init__(self, root):
+            self.root = root
+            self.image_path_list = list()
+            for dirpath, dirnames, filenames in os.walk(root):
+                for name in filenames:
+                    _, ext = os.path.splitext(name)
+                    if ext.lower() in ['.jpg', '.jpeg', '.png']:
+                        self.image_path_list.append(os.path.join(dirpath, name))
+
+            with open(os.path.join(root, '_lp.json')) as fd:
+                self._meta = json.load(fd)
+
+            self.image_path_list = natsorted(self.image_path_list)
+            self.nSamples = len(self.image_path_list)
+
+        def __len__(self):
+            return self.nSamples
+
+        def __getitem__(self, index):
+            imagePath = self.image_path_list[index]
+
+            if not os.path.exists(imagePath):
+                print('%s does not exist' % imagePath)
+                return (None, None, imagePath)
+
+            meta = _LPMeta()
+            meta_key = f"{os.path.basename(self.root)}{imagePath.replace(self.root, '')}"
+            meta.label = self._meta[meta_key]
+
+            with open(imagePath, 'rb') as f:
+                img = f.read()
+            return (img, meta, imagePath)
+
+    os.makedirs(outputPath, exist_ok=True)
+    env = lmdb.open(outputPath, map_size=1099511627776)  # 1024GB
+    cache = {}
+    nSamplesTotal = 0
+    cnt = 1
+    precnt = 1
+
+    for dirpath, dirnames, filenames in os.walk(inputPath):
+        if len(dirnames) == 0:
+            dirnames = [dirpath]  # only single dataset folder
+
+        for dirname in dirnames:
+            rootpath = os.path.join(dirpath, dirname)
+            print(f"reading input path: {rootpath}")
+            dataset = _Dataset(root=rootpath)
+            nSamples = len(dataset)
+            print(f"{dirname} dataset size: {nSamples}")
+
+            for (imageBin, imageMeta, imagePath) in dataset:
+                if checkValid:
+                    try:
+                        if not checkImageIsValid(imageBin):
+                            print('%s is not a valid image' % imagePath)
+                            continue
+                    except Exception as e:
+                        print('error occured for image', imagePath, str(e))
+                        with open(outputPath + '/error_image_log.txt', 'a') as log:
+                            log.write('image data occured error: \n' % imagePath)
+                        continue
+
+                imageKey = 'image-%09d'.encode() % cnt
+                labelKey = 'label-%09d'.encode() % cnt
+                cache[imageKey] = imageBin
+                cache[labelKey] = imageMeta.label.encode()
+
+                if cnt % 1000 == 0:
+                    writeCache(env, cache)  # flush cache
+                    cache = {}
+                    print('Written %d / %d' % (cnt-precnt, nSamples))
+                cnt += 1
+            writeCache(env, cache)  # flush cache
+            cache = {}
+            print('Written %d / %d' % (cnt-precnt, nSamples))
+            nSamplesTotal += (cnt-precnt)
+            precnt = cnt
+
+    cache['num-samples'.encode()] = str(nSamplesTotal).encode()
+    writeCache(env, cache)  # flush cache
+    print('Created dataset with %d samples' % nSamplesTotal)
+    env.close()
+
+
+# def test_crop():
 #     src_path = '/Users/evren/ds/track0052[01].png'
 #     dst_path = '/Users/evren/ds/track0052[01]_crop.png'
 #     position_plate = '843 712 102 36'
@@ -255,4 +357,4 @@ def createDatasetALPR(inputPath, outputPath, checkValid=True):
 
 
 if __name__ == '__main__':
-    fire.Fire(createDatasetALPR)
+    fire.Fire(createDatasetBbox)
