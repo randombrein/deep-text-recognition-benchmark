@@ -103,9 +103,14 @@ def train(opt):
 
     # setup optimizer
     if opt.adam:
-        optimizer = optim.Adam(filtered_parameters, lr=opt.lr, betas=(opt.beta1, 0.999))
+        optimizer = optim.Adam(filtered_parameters, lr=opt.lr,
+                               betas=(opt.beta1, 0.999),
+                               weight_decay=opt.weight_decay)
     else:
-        optimizer = optim.Adadelta(filtered_parameters, lr=opt.lr, rho=opt.rho, eps=opt.eps)
+        optimizer = optim.Adadelta(filtered_parameters, lr=opt.lr,
+                                   rho=opt.rho,
+                                   eps=opt.eps,
+                                   weight_decay=opt.weight_decay)
     print("Optimizer:")
     print(optimizer)
 
@@ -235,6 +240,7 @@ if __name__ == '__main__':
     parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.9')
     parser.add_argument('--rho', type=float, default=0.95, help='decay rate rho for Adadelta. default=0.95')
     parser.add_argument('--eps', type=float, default=1e-8, help='eps for Adadelta. default=1e-8')
+    parser.add_argument('--weight_decay', type=float, default=0, help='weight decay (L2 penalty)')
     parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping value. default=5')
     """ Data processing """
     parser.add_argument('--select_data', type=str, default='MJ-ST',
