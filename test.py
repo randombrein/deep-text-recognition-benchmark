@@ -142,7 +142,12 @@ def validation(model, criterion, evaluation_loader, converter, opt):
                 pred = re.sub(out_of_alphanumeric_case_insensitve, '', pred)
                 gt = re.sub(out_of_alphanumeric_case_insensitve, '', gt)
 
-            if edit_distance(pred, gt) <= opt.ed_threshold:
+            if opt.ed_threshold:
+                is_correct = (edit_distance(pred, gt) <= opt.ed_threshold)
+            else:
+                is_correct = (pred == gt)
+
+            if is_correct:
                 n_correct += 1
 
             '''
@@ -234,8 +239,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--eval_data', required=True, help='path to evaluation dataset')
     parser.add_argument('--benchmark_all_eval', action='store_true', help='evaluate 10 benchmark evaluation datasets')
-    parser.add_argument('--ed_threshold', type=int, default=0, help='Edit distance threshold for acc. calculation')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
+    parser.add_argument('--ed_threshold', type=int, default=0, help='Edit distance threshold for acc. calculation')
     parser.add_argument('--batch_size', type=int, default=192, help='input batch size')
     parser.add_argument('--saved_model', required=True, help="path to saved_model to evaluation")
     """ Data processing """
